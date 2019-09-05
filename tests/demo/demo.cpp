@@ -43,6 +43,7 @@
 #include "model_loader_assimp.hpp"
 #include "model_loader_tinygltf.hpp"
 #include "d3d12/d3d12_dynamic_descriptor_heap.hpp"
+#include "settings.hpp"
 
 using DefaultScene = ViknellScene;
 //#define ENABLE_PHYSICS
@@ -92,7 +93,7 @@ int WispEntry()
 
 	phys::PhysicsEngine phys_engine;
 
-	auto window = std::make_unique<wr::Window>(GetModuleHandleA(nullptr), "D3D12 Test App", 1280, 720);
+	auto window = std::make_unique<wr::Window>(GetModuleHandleA(nullptr), "D3D12 Test App", wr::settings::app_width, wr::settings::app_height);
 
 	window->SetKeyCallback([](int key, int action, int mods)
 	{

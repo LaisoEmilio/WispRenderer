@@ -39,22 +39,18 @@ protected:
 
 private:
 	// Models
-	wr::Model* m_sphere_model;
-	wr::Model* m_plane_model;
-	wr::ModelData* m_plane_model_data;
-	wr::Model* m_xbot_model;
+	wr::Model* m_cube_model;
 
 	// Textures
 	wr::TextureHandle m_skybox;
 
 	// Materials
-	wr::MaterialHandle m_bamboo_material;
-	wr::MaterialHandle m_mirror_material;
+	wr::MaterialHandle m_material_1;
+	wr::MaterialHandle m_material_2;
 
 	// Nodes
 	std::shared_ptr<DebugCamera> m_camera;
 	std::shared_ptr<SplineNode> m_camera_spline_node;
-	std::shared_ptr<PhysicsMeshNode> m_xbot_node;
 
 	float m_time;
 };

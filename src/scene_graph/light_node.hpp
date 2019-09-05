@@ -62,6 +62,12 @@ namespace wr
 		//! Helper for getting the LightType (doesn't include light count for the first light)
 		LightType GetType();
 
+		//! Get view matrix from the Light
+		DirectX::XMMATRIX GetView();
+
+		//! Get projection matrix from the Light
+		DirectX::XMMATRIX GetProjection(size_t width, size_t height, float near_plane, float far_plane);
+
 		//! Allocated data (either temp or array data)
 		Light* m_light;
 

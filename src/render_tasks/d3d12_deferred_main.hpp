@@ -28,6 +28,7 @@
 
 #include "../platform_independend_structs.hpp"
 #include "d3d12_imgui_render_task.hpp"
+#include "d3d12_shadow_mapping.hpp"
 #include "../scene_graph/camera_node.hpp"
 
 namespace wr
@@ -57,6 +58,11 @@ namespace wr
 			auto& n_render_system = static_cast<D3D12RenderSystem&>(rs);
 			auto& data = fg.GetData<DeferredMainTaskData>(handle);
 			auto cmd_list = fg.GetCommandList<d3d12::CommandList>(handle);
+
+			if (fg.HasTask<ShadowMappingTaskData>())
+			{
+				fg.WaitForPredecessorTask<ShadowMappingTaskData>();
+			}
 
 			if (n_render_system.m_render_window.has_value())
 			{

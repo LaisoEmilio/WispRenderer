@@ -81,8 +81,8 @@ void Scene::LoadLightsFromJSON()
 		auto pos = j_light["pos"].get<std::vector<float>>();
 		auto rot = j_light["rot"].get<std::vector<float>>();
 		auto size = j_light["size"].get<int>();
-		auto radius = j_light["radius"].get<int>();
-		auto angle = j_light["angle"].get<int>();
+		auto radius = j_light["radius"].get<float>();
+		auto angle = j_light["angle"].get <float> ();
 
 		auto light = m_scene_graph->CreateChild<wr::LightNode>(nullptr, (wr::LightType)type);
 		light->SetColor({ color[0], color[1], color[2] });

@@ -300,6 +300,21 @@ namespace wr
 		.defines = {}
 	});
 
+	REGISTER(shaders::shadow_map_vs, ShaderRegistry)({
+		.path = "resources/shaders/shadow_mapping.hlsl",
+		.entry = "main_vs",
+		.type = ShaderType::VERTEX_SHADER,
+		.defines = {}
+	});
+
+	REGISTER(shaders::shadow_map_ps, ShaderRegistry)({
+		.path = "resources/shaders/shadow_mapping.hlsl",
+		.entry = "main_ps",
+		.type = ShaderType::PIXEL_SHADER,
+		.defines = {}
+	});
+	
+
 	REGISTER(pipelines::brdf_lut_precalculation, PipelineRegistry) < Vertex2D > ({
 		.m_vertex_shader_handle = std::nullopt,
 		.m_pixel_shader_handle = std::nullopt,
@@ -325,6 +340,21 @@ namespace wr
 		.m_num_rtv_formats = 3,
 		.m_type = PipelineType::GRAPHICS_PIPELINE,
 		.m_cull_mode = CullMode::CULL_NONE,
+		.m_depth_enabled = true,
+		.m_counter_clockwise = false,
+		.m_topology_type = TopologyType::TRIANGLE
+		});
+
+	REGISTER(pipelines::shadow_mapping, PipelineRegistry) < Vertex > ({
+		.m_vertex_shader_handle = shaders::shadow_map_vs,
+		.m_pixel_shader_handle = shaders::shadow_map_ps,
+		.m_compute_shader_handle = std::nullopt,
+		.m_root_signature_handle = root_signatures::basic,
+		.m_dsv_format = Format::D32_FLOAT,
+		.m_rtv_formats = { Format::R16G16B16A16_FLOAT, Format::R16G16B16A16_FLOAT, Format::R16G16B16A16_FLOAT },
+		.m_num_rtv_formats = 3,
+		.m_type = PipelineType::GRAPHICS_PIPELINE,
+		.m_cull_mode = CullMode::CULL_BACK,
 		.m_depth_enabled = true,
 		.m_counter_clockwise = false,
 		.m_topology_type = TopologyType::TRIANGLE

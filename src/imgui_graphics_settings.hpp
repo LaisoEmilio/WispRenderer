@@ -21,6 +21,7 @@
 #include "render_tasks/d3d12_build_acceleration_structures.hpp"
 #include "render_tasks/d3d12_rt_shadow_task.hpp"
 #include "render_tasks/d3d12_shadow_denoiser_task.hpp"
+#include "render_tasks/d3d12_shadow_mapping.hpp"
 
 namespace wr::imgui::window
 {
@@ -30,9 +31,33 @@ namespace wr::imgui::window
 	static bool asbuild_settings_open = true;
 	static bool shadow_settings_open = true;
 	static bool shadow_denoiser_settings_open = true;
+	static bool shadow_mapping_settings_open = true;
 
 	void GraphicsSettings(FrameGraph* frame_graph)
 	{
+		if (frame_graph->HasTask<wr::ShadowMappingTaskData>() && shadow_mapping_settings_open)
+		{
+			auto sm_user_settings = frame_graph->GetSettings<ShadowMappingTaskData, ShadowMappingSettings>();
+			ImGui::Begin("Shadow Map Settings", &shadow_mapping_settings_open);
+
+			static int id = 0;
+			static int res[2] = { settings::app_width, settings::app_height };
+
+			ImGui::DragFloat("Far Plane", &sm_user_settings.m_runtime.m_far_plane, 1.0f, 0.0f, 4000.f);
+			ImGui::DragInt("Light ID", &id, 1.0f, 0, 10);
+			ImGui::InputInt2("Resolution", res);
+
+			if(ImGui::Button("Save Changes"))
+			{
+				sm_user_settings.m_runtime.m_light_id = id;
+				sm_user_settings.m_runtime.m_resolution = { static_cast<uint32_t>(res[0]), static_cast<uint32_t>(res[1]) };
+			}
+
+			ImGui::End();
+
+			frame_graph->UpdateSettings<ShadowMappingTaskData>(sm_user_settings);
+		}
+
 		if (frame_graph->HasTask<wr::RTAOData>() && rtao_settings_open)
 		{
 			auto rtao_user_settings = frame_graph->GetSettings<RTAOData, RTAOSettings>();
@@ -47,7 +72,6 @@ namespace wr::imgui::window
 
 			frame_graph->UpdateSettings<RTAOData>(rtao_user_settings);
 		}
-
 
 		if (frame_graph->HasTask<HBAOData>() && hbao_settings_open)
 		{

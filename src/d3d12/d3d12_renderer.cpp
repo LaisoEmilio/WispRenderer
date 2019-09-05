@@ -1108,7 +1108,7 @@ namespace wr
 		auto n_cmd_list = static_cast<d3d12::CommandList*>(cmd_list);
 		auto d3d12_camera_cb = static_cast<D3D12ConstantBufferHandle*>(camera->m_camera_cb);
 	
-		d3d12::BindConstantBuffer(n_cmd_list, d3d12_camera_cb->m_native, 0, GetFrameIdx());
+		//d3d12::BindConstantBuffer(n_cmd_list, d3d12_camera_cb->m_native, 0, GetFrameIdx());
 
 		//Render batches
 		for (auto& elem : batches)
@@ -1176,6 +1176,8 @@ namespace wr
 						batch.num_instances, 
 						static_cast<std::uint32_t>(n_mesh->m_vertex_staging_buffer_offset));
 				}
+
+				m_bound_model_pool = nullptr;
 			}
 		}
 

@@ -125,4 +125,35 @@ namespace wr
 		return (LightType)(m_light->tid & 0x3);
 	}
 
+	DirectX::XMMATRIX LightNode::GetView()
+	{
+		auto pos = DirectX::XMLoadFloat3(&m_light->pos);
+		auto forward = DirectX::XMVectorNegate(DirectX::XMLoadFloat3(&m_light->dir));
+
+		auto up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0);
+
+		auto side = DirectX::XMVector3Cross(forward, up);
+		up = DirectX::XMVector3Cross(side, forward);
+
+		return DirectX::XMMatrixLookToRH(pos, forward, up);
+	}
+
+	DirectX::XMMATRIX LightNode::GetProjection(size_t width, size_t height, float near_plane, float far_plane)
+	{
+		switch (m_light->tid & 0x3)
+		{
+		case (uint32_t)LightType::DIRECTIONAL:
+			return DirectX::XMMatrixOrthographicOffCenterRH(-width * 0.5f, width * 0.5f, -height * 0.5f, height * 0.5f, near_plane, far_plane);
+
+		case (uint32_t)LightType::POINT:
+			return DirectX::XMMatrixPerspectiveFovRH(90.0_deg, width / height, near_plane, far_plane);
+
+		case (uint32_t)LightType::SPOT:
+		{
+			return DirectX::XMMatrixPerspectiveFovRH(m_light->ang, width / height, near_plane, far_plane);
+		}
+		default:
+			return DirectX::XMMatrixIdentity();
+		}
+	}
 }

@@ -19,12 +19,10 @@
 
 ViknellScene::ViknellScene() :
 	Scene(256, 2_mb, 2_mb),
-	m_sphere_model(nullptr),
-	m_plane_model(nullptr),
-	m_xbot_model(nullptr),
-	m_bamboo_material(),
+	m_cube_model(nullptr),
+	m_material_1(),
+	m_material_2(),
 	m_skybox({}),
-	m_plane_model_data(nullptr),
 	m_time(0)
 {
 	m_lights_path = "resources/viknell_lights.json";
@@ -32,97 +30,72 @@ ViknellScene::ViknellScene() :
 
 ViknellScene::~ViknellScene()
 {
-	if(m_plane_model)
+	if (m_cube_model)
 	{
-		m_model_pool->Destroy(m_plane_model);
-		m_model_pool->Destroy(m_xbot_model);
-		m_model_pool->Destroy(m_sphere_model);
-		m_material_pool->DestroyMaterial(m_bamboo_material);
-		m_material_pool->DestroyMaterial(m_mirror_material);
+		m_model_pool->Destroy(m_cube_model);
+		m_material_pool->DestroyMaterial(m_material_1);
+		m_material_pool->DestroyMaterial(m_material_2);
 	}
 }
 
 void ViknellScene::LoadResources()
 {
 	// Models
-	m_plane_model = m_model_pool->Load<wr::Vertex>(m_material_pool.get(), m_texture_pool.get(), "resources/models/plane.fbx", &m_plane_model_data);
-	m_xbot_model = m_model_pool->LoadWithMaterials<wr::Vertex>(m_material_pool.get(), m_texture_pool.get(), "resources/models/xbot.fbx");
-	m_sphere_model = m_model_pool->Load<wr::Vertex>(m_material_pool.get(), m_texture_pool.get(), "resources/models/sphere.fbx");
+	m_cube_model = m_model_pool->Load<wr::Vertex>(m_material_pool.get(), m_texture_pool.get(), "resources/models/cube.fbx");
 
 	// Textures
 	wr::TextureHandle bamboo_albedo = m_texture_pool->LoadFromFile("resources/materials/bamboo/bamboo-wood-semigloss-albedo.png", true, true);
-	wr::TextureHandle bamboo_normal = m_texture_pool->LoadFromFile("resources/materials/bamboo/bamboo-wood-semigloss-normal.png", false, true);
-	wr::TextureHandle bamboo_roughness = m_texture_pool->LoadFromFile("resources/materials/bamboo/bamboo-wood-semigloss-roughness.png", false, true);
-	wr::TextureHandle bamboo_metallic = m_texture_pool->LoadFromFile("resources/materials/bamboo/bamboo-wood-semigloss-metal.png", false, true);
+
 	m_skybox = m_texture_pool->LoadFromFile("resources/materials/Barce_Rooftop_C_3k.hdr", false, false);
 
 	// Materials
-	m_mirror_material = m_material_pool->Create(m_texture_pool.get());
-	wr::Material* mirror_internal = m_material_pool->GetMaterial(m_mirror_material);
-	mirror_internal->SetConstant<wr::MaterialConstant::ROUGHNESS>(0);
-	mirror_internal->SetConstant<wr::MaterialConstant::METALLIC>(1);
-	mirror_internal->SetConstant<wr::MaterialConstant::COLOR>({ 1, 1, 1 });
+	m_material_1 = m_material_pool->Create(m_texture_pool.get());
+	wr::Material* mat_1_int = m_material_pool->GetMaterial(m_material_1);
+	mat_1_int->SetConstant<wr::MaterialConstant::ROUGHNESS>(0.05f);
+	mat_1_int->SetConstant<wr::MaterialConstant::METALLIC>(1.0f);
+	mat_1_int->SetConstant<wr::MaterialConstant::COLOR>({ 1, 1, 1 });
 
-	m_bamboo_material = m_material_pool->Create(m_texture_pool.get());
-	wr::Material* bamboo_material_internal = m_material_pool->GetMaterial(m_bamboo_material);
-	bamboo_material_internal->SetTexture(wr::TextureType::ALBEDO, bamboo_albedo);
-	bamboo_material_internal->SetTexture(wr::TextureType::NORMAL, bamboo_normal);
-	bamboo_material_internal->SetTexture(wr::TextureType::ROUGHNESS, bamboo_roughness);
-	bamboo_material_internal->SetTexture(wr::TextureType::METALLIC, bamboo_metallic);
+	m_material_2 = m_material_pool->Create(m_texture_pool.get());
+	wr::Material* mat_2_int = m_material_pool->GetMaterial(m_material_2);
+	mat_2_int->SetTexture(wr::TextureType::ALBEDO, bamboo_albedo);
+	mat_2_int->SetConstant<wr::MaterialConstant::ROUGHNESS>(0.99f);
+	mat_2_int->SetConstant<wr::MaterialConstant::METALLIC>(0.01f);
 }
 
 void ViknellScene::BuildScene(unsigned int width, unsigned int height, void* extra)
 {
-	auto& phys_engine = *reinterpret_cast<phys::PhysicsEngine*>(extra);
-
 	m_camera = m_scene_graph->CreateChild<DebugCamera>(nullptr, 90.f, (float)width / (float)height);
-	m_camera->SetPosition({ 0, 0, 2 });
-	m_camera->SetSpeed(10);
+	m_camera->SetPosition({ 0, 20, 20 });
+	m_camera->SetSpeed(20);
 
 	m_camera_spline_node = m_scene_graph->CreateChild<SplineNode>(nullptr, "Camera Spline", false);
 
 	auto skybox = m_scene_graph->CreateChild<wr::SkyboxNode>(nullptr, m_skybox);
 
 	// Geometry
-	auto floor = m_scene_graph->CreateChild<PhysicsMeshNode>(nullptr, &phys_engine, m_plane_model);
-	auto roof = m_scene_graph->CreateChild<wr::MeshNode>(nullptr, m_plane_model);
-	auto back_wall = m_scene_graph->CreateChild<wr::MeshNode>(nullptr, m_plane_model);
-	auto left_wall = m_scene_graph->CreateChild<wr::MeshNode>(nullptr, m_plane_model);
-	auto right_wall = m_scene_graph->CreateChild<wr::MeshNode>(nullptr, m_plane_model);
-	m_xbot_node = m_scene_graph->CreateChild<PhysicsMeshNode>(nullptr, &phys_engine, m_xbot_model);
-	auto sphere = m_scene_graph->CreateChild<wr::MeshNode>(nullptr, m_sphere_model);
+	auto floor = m_scene_graph->CreateChild<wr::MeshNode>(nullptr, m_cube_model);
+	floor->SetScale({ 10, 1, 300 });
+	floor->SetMaterials({ m_material_2 });
 
-	floor->SetupConvex(phys_engine, m_plane_model_data);
-	floor->SetRestitution(1.f);
-	floor->SetPosition({ 0, -1, 0 });
-	floor->SetRotation({ 90_deg, 0, 0 });
-	floor->AddMaterial(m_bamboo_material);
-	sphere->SetPosition({ 1, -1, -1 });
-	sphere->SetScale({ 0.6f, 0.6f, 0.6f });
-	sphere->AddMaterial(m_mirror_material);
-	roof->SetPosition({ 0, 1, 0 });
-	roof->SetRotation({ -90_deg, 0, 0 });
-	roof->AddMaterial(m_bamboo_material);
-	back_wall->SetPosition({ 0, 0, -1 });
-	back_wall->SetRotation({ 0, 180_deg, 0 });
-	back_wall->AddMaterial(m_bamboo_material);
-	left_wall->SetPosition({ -1, 0, 0 });
-	left_wall->SetRotation({ 0, -90_deg, 0 });
-	left_wall->AddMaterial(m_bamboo_material);
-	right_wall->SetPosition({ 1, 0, 0 });
-	right_wall->SetRotation({ 0, 90_deg, 0 });
-	right_wall->AddMaterial(m_bamboo_material);
+	auto cube_1 = m_scene_graph->CreateChild<wr::MeshNode>(nullptr, m_cube_model);
+	cube_1->SetPosition({ 8, 10, 0 });
+	cube_1->SetMaterials({ m_material_1 });
 
-	m_xbot_node->SetMass(0.01f);
-	m_xbot_node->SetupSimpleSphereColl(phys_engine, 0.5);
-	m_xbot_node->m_rigid_body->setRestitution(0.4);
-	m_xbot_node->m_rigid_body->setFriction(0);
-	m_xbot_node->m_rigid_body->setRollingFriction(0);
-	m_xbot_node->m_rigid_body->setSpinningFriction(0);
-	m_xbot_node->SetPosition({ 0, -1, 0 });
-	m_xbot_node->SetRotation({ 0, 180_deg, 0 });
-	m_xbot_node->SetScale({ 0.01f,0.01f,0.01f });
-	m_xbot_node->m_rigid_body->activate(true);
+	auto cube_2 = m_scene_graph->CreateChild<wr::MeshNode>(nullptr, m_cube_model);
+	cube_2->SetPosition({ -8, 10, 0 });
+	cube_2->SetRotation({ 0.0f, 45.0_deg, 0.0f});
+	cube_2->SetMaterials({ m_material_1 });
+
+	for (int i = 0; i < 200; ++i)
+	{
+		auto cube = m_scene_graph->CreateChild<wr::MeshNode>(nullptr, m_cube_model);
+
+		float rand_x = float(rand()) / RAND_MAX; rand_x = rand_x * 16.0f - 8.0f;
+		float rand_z = float(rand()) / RAND_MAX; rand_z *= -300.0f;
+
+		cube->SetPosition({ rand_x, 10, rand_z });
+		cube->SetMaterials({ m_material_1 });
+	}
 
 	// Lights
 	/*auto point_light_0 = m_scene_graph->CreateChild<wr::LightNode>(nullptr, wr::LightType::DIRECTIONAL, DirectX::XMVECTOR{ 1, 1, 1 });

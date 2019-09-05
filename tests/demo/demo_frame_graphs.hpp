@@ -48,6 +48,7 @@
 #include "render_tasks/d3d12_bloom_composition.hpp"
 #include "render_tasks/d3d12_bloom_horizontal_blur.hpp"
 #include "render_tasks/d3d12_bloom_vertical_blur.hpp"
+#include "render_tasks/d3d12_shadow_mapping.hpp"
 
 namespace fg_manager
 {
@@ -55,9 +56,9 @@ namespace fg_manager
 	enum class PrebuildFrameGraph : std::uint32_t
 	{
 		DEFERRED = 0,
-		RT_HYBRID = 1,
-		RAYTRACING = 2,
-		PATH_TRACER = 3,
+		//RT_HYBRID = 1,
+		//RAYTRACING = 2,
+		//PATH_TRACER = 3,
 	};
 
 	inline std::string GetFrameGraphName(PrebuildFrameGraph id)
@@ -66,188 +67,44 @@ namespace fg_manager
 		{
 		case PrebuildFrameGraph::DEFERRED:
 			return "Deferred";
-		case PrebuildFrameGraph::RT_HYBRID:
+		/*case PrebuildFrameGraph::RT_HYBRID:
 			return "Hybrid";
 		case PrebuildFrameGraph::RAYTRACING:
 			return "Full Raytracing";
 		case PrebuildFrameGraph::PATH_TRACER:
-			return "Path Tracer";
+			return "Path Tracer";*/
 		default:
 			return "Unknown";
 		}
 	}
 
 	static PrebuildFrameGraph current = fg_manager::PrebuildFrameGraph::DEFERRED;
-	static std::array<wr::FrameGraph*, 4> frame_graphs = {};
+	static std::array<wr::FrameGraph*, 1> frame_graphs = {};
 
 	inline void Setup(wr::RenderSystem& rs, util::Delegate<void(ImTextureID)> const& imgui_func)
 	{
-		// Raytracing
-		{
-			auto& fg = frame_graphs[(int)PrebuildFrameGraph::RAYTRACING];
-			fg = new wr::FrameGraph(4);
-
-			wr::AddBuildAccelerationStructuresTask(*fg);
-			wr::AddEquirectToCubemapTask(*fg);
-			wr::AddCubemapConvolutionTask(*fg);
-			wr::AddRaytracingTask(*fg);
-
-			wr::AddPostProcessingTask<wr::RaytracingData>(*fg);
-			
-			// Copy the scene render pixel data to the final render target
-			wr::AddRenderTargetCopyTask<wr::PostProcessingData>(*fg);
-
-			// Display ImGui
-			fg->AddTask<wr::ImGuiTaskData>(wr::GetImGuiTask<wr::PostProcessingData>(imgui_func), L"ImGui");
-
-			fg->Setup(rs);
-		}
-
 		// Deferred
 		{
 			auto& fg = frame_graphs[(int)PrebuildFrameGraph::DEFERRED];
 			fg = new wr::FrameGraph(24);
+
+			wr::AddBrdfLutPrecalculationTask(*fg);
+			wr::AddEquirectToCubemapTask(*fg);
+			wr::AddCubemapConvolutionTask(*fg);
 			
-			wr::AddBrdfLutPrecalculationTask(*fg);
-			wr::AddEquirectToCubemapTask(*fg);
-			wr::AddCubemapConvolutionTask(*fg);
+			wr::AddShadowMappingTask(*fg, std::nullopt, std::nullopt);
+			
 			wr::AddDeferredMainTask(*fg, std::nullopt, std::nullopt, false);
-			wr::AddHBAOTask(*fg);
 			wr::AddDeferredCompositionTask(*fg, std::nullopt, std::nullopt);
 
-			//High quality bloom pass
-			wr::AddBloomExtractBrightTask<wr::DeferredCompositionTaskData, wr::DeferredMainTaskData>(*fg);
-			wr::AddBloomBlurHorizontalTask<wr::BloomExtractBrightData>(*fg);
-			wr::AddBloomBlurVerticalTask<wr::BloomBlurHorizontalData>(*fg);
-			wr::AddBloomCompositionTask<wr::DeferredCompositionTaskData, wr::BloomBlurVerticalData>(*fg);
-
-			// Do Depth of field task
-			wr::AddDoFCoCTask<wr::DeferredMainTaskData>(*fg);
-			wr::AddDownScaleTask<wr::BloomCompostionData, wr::DoFCoCData>(*fg);
-			wr::AddDoFNearMaskTask<wr::DownScaleData>(*fg);
-			wr::AddDoFDilateTask<wr::DoFNearMaskData>(*fg);
-			wr::AddDoFBokehTask<wr::DownScaleData, wr::DoFDilateData>(*fg);
-			wr::AddDoFBokehPostFilterTask<wr::DoFBokehData>(*fg);
-
-			wr::AddDoFCompositionTask<wr::BloomCompostionData, wr::DoFBokehPostFilterData, wr::DoFCoCData>(*fg);
-
-			wr::AddPostProcessingTask<wr::DoFCompositionData>(*fg);
+			wr::AddPostProcessingTask<wr::ShadowMappingTaskData>(*fg);
 
 			// Copy the scene render pixel data to the final render target
 			wr::AddRenderTargetCopyTask<wr::PostProcessingData>(*fg);
 
-			wr::AddAnselTask(*fg);
-
 			// Display ImGui
-			fg->AddTask<wr::ImGuiTaskData>(wr::GetImGuiTask<wr::PostProcessingData>(imgui_func), L"ImGui");
+			fg->AddTask<wr::ImGuiTaskData>(wr::GetImGuiTask<wr::ShadowMappingTaskData>(imgui_func), L"ImGui");
 
-			fg->Setup(rs);
-		}
-
-		// Path Tracer
-		{
-			auto& fg = frame_graphs[(int)PrebuildFrameGraph::PATH_TRACER];
-			fg = new wr::FrameGraph(18);
-
-			// Precalculate BRDF Lut
-			wr::AddBrdfLutPrecalculationTask(*fg);
-
-			wr::AddEquirectToCubemapTask(*fg);
-			wr::AddCubemapConvolutionTask(*fg);
-
-			// Construct the G-buffer
-			wr::AddDeferredMainTask(*fg, std::nullopt, std::nullopt, true);
-
-			wr::AddHBAOTask(*fg);
-
-			// Build Acceleration Structure
-			wr::AddBuildAccelerationStructuresTask(*fg);
-
-			// Raytracing task
-			wr::AddRTReflectionTask(*fg);
-			wr::AddRTShadowTask(*fg);
-
-			wr::AddShadowDenoiserTask(*fg);
-			wr::AddSpatialReconstructionTask(*fg);
-			wr::AddReflectionDenoiserTask(*fg);
-
-			// Global Illumination Path Tracing
-			wr::AddPathTracerTask(*fg);
-			wr::AddAccumulationTask<wr::PathTracerData>(*fg);
-
-			wr::AddDeferredCompositionTask(*fg, std::nullopt, std::nullopt);
-
-			// Do some post processing
-			wr::AddPostProcessingTask<wr::DeferredCompositionTaskData>(*fg);
-
-			// Copy the raytracing pixel data to the final render target
-			wr::AddRenderTargetCopyTask<wr::PostProcessingData>(*fg);
-
-			wr::AddAnselTask(*fg);
-
-			// Display ImGui
-			fg->AddTask<wr::ImGuiTaskData>(wr::GetImGuiTask<wr::PostProcessingData>(imgui_func), L"ImGui");
-
-			// Finalize the frame graph
-			fg->Setup(rs);
-		}
-
-		// Hybrid raytracing
-		{
-			auto& fg = frame_graphs[(int) PrebuildFrameGraph::RT_HYBRID];
-			fg = new wr::FrameGraph(31);
-
-			// Precalculate BRDF Lut
-			wr::AddBrdfLutPrecalculationTask(*fg);
-
-			wr::AddEquirectToCubemapTask(*fg);
-			wr::AddCubemapConvolutionTask(*fg);
-			 // Construct the G-buffer
-			wr::AddDeferredMainTask(*fg, std::nullopt, std::nullopt, true);
-
-			// Build Acceleration Structure
-			wr::AddBuildAccelerationStructuresTask(*fg);
-
-			// Raytracing task
-			wr::AddRTReflectionTask(*fg);
-			wr::AddRTShadowTask(*fg);
-
-			wr::AddShadowDenoiserTask(*fg);
-			wr::AddSpatialReconstructionTask(*fg);
-
-			wr::AddReflectionDenoiserTask(*fg);
-
-			//Raytraced Ambient Occlusion task
-			wr::AddRTAOTask(*fg, static_cast<wr::D3D12RenderSystem&>(rs).m_device);
-
-			wr::AddDeferredCompositionTask(*fg, std::nullopt, std::nullopt);
-
-			//High quality bloom pass
-			wr::AddBloomExtractBrightTask<wr::DeferredCompositionTaskData, wr::DeferredMainTaskData>(*fg);
-			wr::AddBloomBlurHorizontalTask<wr::BloomExtractBrightData>(*fg);
-			wr::AddBloomBlurVerticalTask<wr::BloomBlurHorizontalData>(*fg);
-			wr::AddBloomCompositionTask<wr::DeferredCompositionTaskData, wr::BloomBlurVerticalData>(*fg);
-
-			// Do Depth of field task
-			wr::AddDoFCoCTask<wr::DeferredMainTaskData>(*fg);
-			wr::AddDownScaleTask<wr::BloomCompostionData, wr::DoFCoCData>(*fg);
-			wr::AddDoFNearMaskTask<wr::DownScaleData>(*fg);
-			wr::AddDoFDilateTask<wr::DoFNearMaskData>(*fg);
-			wr::AddDoFBokehTask<wr::DownScaleData, wr::DoFDilateData>(*fg);
-			wr::AddDoFBokehPostFilterTask<wr::DoFBokehData>(*fg);
-			wr::AddDoFCompositionTask<wr::BloomCompostionData, wr::DoFBokehPostFilterData, wr::DoFCoCData>(*fg);
-
-			wr::AddPostProcessingTask<wr::DoFCompositionData>(*fg);
-
-			// Copy the scene render pixel data to the final render target
-			wr::AddRenderTargetCopyTask<wr::PostProcessingData>(*fg);
-
-			wr::AddAnselTask(*fg);
-
-			// Display ImGui
-			fg->AddTask<wr::ImGuiTaskData>(wr::GetImGuiTask<wr::PostProcessingData>(imgui_func), L"ImGui");
-
-			// Finalize the frame graph
 			fg->Setup(rs);
 		}
 	}

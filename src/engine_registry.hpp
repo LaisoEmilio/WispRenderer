@@ -835,6 +835,20 @@ namespace wr
 			rs_layout::Entry{(int)BloomCompositionE::BLOOM_PROPERTIES, 1, rs_layout::Type::CBV_OR_CONST},
 		};
 
+
+		// Post-fork
+		enum class ForwardMainE
+		{
+			CAMERA_PROPERTIES,
+			OBJECT_PROPERTIES
+		};
+
+		constexpr std::array<rs_layout::Entry, 2> forward_main = {
+			rs_layout::Entry{(int)ForwardMainE::CAMERA_PROPERTIES, 1, rs_layout::Type::CBV_OR_CONST},
+			rs_layout::Entry{(int)ForwardMainE::OBJECT_PROPERTIES, 1, rs_layout::Type::CBV_OR_CONST}
+		};
+
+
 	} /* srv */
 
 	struct root_signatures
@@ -909,6 +923,9 @@ namespace wr
 		WISPRENDERER_EXPORT static RegistryHandle reflection_temporal_denoiser;
 		WISPRENDERER_EXPORT static RegistryHandle reflection_variance_estimator;
 		WISPRENDERER_EXPORT static RegistryHandle reflection_spatial_denoiser;
+
+		WISPRENDERER_EXPORT static RegistryHandle shadow_map_vs;
+		WISPRENDERER_EXPORT static RegistryHandle shadow_map_ps;
 	};
 
 	struct pipelines
@@ -942,6 +959,8 @@ namespace wr
 		WISPRENDERER_EXPORT static RegistryHandle reflection_temporal_denoiser;
 		WISPRENDERER_EXPORT static RegistryHandle reflection_variance_estimator;
 		WISPRENDERER_EXPORT static RegistryHandle reflection_spatial_denoiser;
+
+		WISPRENDERER_EXPORT static RegistryHandle shadow_mapping;
 	};
 
 	struct state_objects
